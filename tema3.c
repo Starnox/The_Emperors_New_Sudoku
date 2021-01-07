@@ -23,10 +23,15 @@ int main(int argc, char *argv[] )
     bitmap *myBitmap = NULL;
     myBitmap = ParseJSON(inputString, &pixelMatrix);
 
-    CreateBMPFromJPEG(myBitmap,pixelMatrix);
+    unsigned char *img = TransformPixelMatrix(pixelMatrix, myBitmap);
+    CreateBMP(myBitmap,img);
+    MirrorNumbers(myBitmap, &pixelMatrix);
+    img = TransformPixelMatrix(pixelMatrix, myBitmap);
+    CreateBMP(myBitmap,img);
 
     free(myBitmap);
     free(pixelMatrix);
+    free(img);
     //free(myFileHeader);
     //free(myInfoheader);
     free(inputString);
@@ -242,43 +247,45 @@ Pixel * ParseBitmap(cJSON *sudoku, int width, int height)
     return pixelMatrix;
 }
 
-void CreateBMPFromJPEG(bitmap *myBitmap, Pixel *pixelMatrix)
+unsigned char *TransformPixelMatrix(Pixel *pixelMatrix, bitmap *myBitmap)
 {
-    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height;
-    unsigned char *img = malloc(3 * width * height);
-    unsigned char bmppad[3] = {0, 0, 0};
-    FILE *fp = fopen("test.bmp", "wb");
+    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
+                pixelSize = sizeof(Pixel), i, j;
+    unsigned char *img = malloc(pixelSize * width * height);
     
-    fwrite(myBitmap, 1, sizeof(bitmap), fp);
-    
-    
-    for(int i=0; i< height; ++i)
+    // create a new matrix of unsigned char with all the pixels
+    for(i=0; i< height; ++i)
     {
-        for(int j=0; j< width; ++j)
+        for(j=0; j< width; ++j)
         {
-            int x = i, y = (height - 1) - j;
-            int curr_index = i * height  + j;
-            int r = pixelMatrix[curr_index].r;
-            int g = pixelMatrix[curr_index].g;
-            int b = pixelMatrix[curr_index].b;
+            int curr_index = i * height  + j,
+                r = pixelMatrix[curr_index].r,
+                g = pixelMatrix[curr_index].g,
+                b = pixelMatrix[curr_index].b;
 
-            img[i * width * 3 + j * 3 + 2] = (unsigned char) (r);
-            img[i * width * 3 + j * 3 + 1] = (unsigned char) (g);
-            img[i * width * 3 + j * 3 +  0] = (unsigned char) (b);
-            /*
-            img[(x+width * y)*3 + 2] = (unsigned char) (r);
-            img[(x+width * y)*3 + 1] = (unsigned char) (g);
-            img[(x+width * y)*3 + 0] = (unsigned char) (b);
-            */
+            img[i * width * pixelSize + j * pixelSize + 2] = (unsigned char) (r);
+            img[i * width * pixelSize + j * pixelSize + 1] = (unsigned char) (g);
+            img[i * width * pixelSize + j * pixelSize + 0] = (unsigned char) (b);
         }
     }
+
+    return img;
+}
+
+void CreateBMP(bitmap *myBitmap, unsigned char * img)
+{
+    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
+                pixelSize = sizeof(Pixel), i;
+    unsigned char pad = '0';
+    FILE *fp = fopen("test.bmp", "wb");
+    fwrite(myBitmap, 1, sizeof(bitmap), fp);
     
-    for(int i=0; i<height; ++i)
+    for(i=0; i < height; ++i)
     {
-        
-        //fwrite(img + (width * (height-i-1)*3), 3, width, fp);
-        fwrite(img + (i * 3 * width), 3, width, fp);
-        fwrite(bmppad, 1, (4-(width * 3)%4)%4, fp); // Padding for each row
+        // write each line of pixels
+        fwrite(img + (i * pixelSize * width), pixelSize, width, fp);
+        // add a padding of one byte to respect the format
+        fwrite(&pad, sizeof(char), 1, fp);
     }
     
     
@@ -303,4 +310,69 @@ void CreateBMPFromJPEG(bitmap *myBitmap, Pixel *pixelMatrix)
     }*/
     
     fclose(fp);
+}
+
+int CheckWhitePixel(Pixel *pixel)
+{
+    if(pixel->b == 255 && pixel->g == 255 && pixel->r == 255)
+        return 1;
+    return 0;
+}
+
+void SwapNumbers(uint8_t *a, uint8_t *b)
+{
+    int aux = *a;
+    *a = *b;
+    *b = aux;
+}
+
+void SwapPixels(Pixel * pixel1, Pixel * pixel2)
+{
+    SwapNumbers(&pixel1->b, &pixel2->b);
+    SwapNumbers(&pixel1->g, &pixel2->g);
+    SwapNumbers(&pixel1->r, &pixel2->r);
+}
+
+
+void MirrorNumbers(bitmap *myBitmap, Pixel **pixelMatrix)
+{
+    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
+                pixelSize = sizeof(Pixel), i, j, curr_index, k = -1;
+    Pixel *currPixel, *toSwap;
+    for(i = 0; i < height; ++i)
+    {
+        for(j =  0; j < width; ++j)
+        {
+            curr_index = i * height  + j;
+            // verify if it is a white pixel (color around the number)
+            // and then mirror the pixels in relation with the vertical axis
+            currPixel = (*pixelMatrix) + curr_index;
+
+            if(CheckWhitePixel(currPixel) && k == -1)
+            {
+                k = 3;
+                toSwap = (*pixelMatrix) + curr_index + 2 * k;
+                SwapPixels(currPixel, toSwap);
+                k--;
+            } 
+            else if(k > 0)
+            {
+                toSwap = (*pixelMatrix) + curr_index + 2 * k;
+                SwapPixels(currPixel, toSwap);
+                k--;
+            }
+            else if(k == 0)
+            {
+                j+=4;
+                k=-1;
+            }
+            /*
+            if(CheckWhitePixel(currPixel) == 1 && k = -1)
+            {
+                k = 3;
+                swapPixels(&((*pixelMatrix)[curr_index]), &((*pixelMatrix)[curr_index+2*k]));
+                k-- 
+            }*/
+        }
+    }
 }
