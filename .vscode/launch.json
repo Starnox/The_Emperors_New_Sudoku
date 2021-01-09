@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["input/task_1/board1.json"],
+            "args": ["checker/input/task1/board01.json", "123"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],

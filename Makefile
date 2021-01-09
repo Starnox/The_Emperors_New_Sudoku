@@ -11,7 +11,7 @@ SRCS = tema3.c cJSON.c
 OBJS = $(SRCS:.c=.o)
 
 # Executable file
-MAIN = tema3
+MAIN = sudoku
 
 build: $(MAIN)
 	@echo  Your homework has been compiled successfully ^_^

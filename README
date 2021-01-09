@@ -1,0 +1,42 @@
+In order to run the checker, the executable file needs to be
+	- named "sudoku" 
+	- placed in the parent directory of the "checker" directory. (one level above)
+
+	eg. of file structure:
+		.
+		├── Makefile
+		├── checker
+		│   ├── checker.sh
+		│   ├── input
+		│   ├── out
+		│   └── ref
+		├── src			<----- example folder with every source/header files needed for your project
+		│   ├── bmp_handlers.c	
+		│   ├── bmp_handlers.h	
+		│   ├── bmp_header.h
+		│   ├── cJSON.c
+		│   ├── cJSON.h
+		│   ├── main.c
+		│   ├── solver.c
+		│   ├── solver.h
+		│   ├── utils.c
+		│   └── utils.h
+		└── sudoku		<---- executable
+
+
+Your program should output a file named after the output_task#_board#.<json/bmp> schema
+	eg.:	Task: 		2
+		Input file: 	./path/to/img/board07.bmp
+		Output file: 	output_task2_board07.bmp
+		
+
+
+When formatting the name of the output file, don't forget to take into consideration the path
+to the input file: The name of the output file should be independent of the path to the input file,
+as seen in the example above.
+
+To run the checker, simply run ./checker
+	Note: You can also run tasks independently: ./checker {1/2/3/4/bonus}
+
+Running the checker generates and keeps your program's outputs in
+the ./checker/out/ directory.
