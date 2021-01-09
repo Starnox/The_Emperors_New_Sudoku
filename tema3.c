@@ -8,7 +8,7 @@ int main(int argc, char *argv[] )
     if(strcmp("123", argv[2]) == 0)
         Solve123(argv[1]);
     else if(strcmp("4", argv[2]) == 0)
-        Solve4();
+        Solve4(argv[1]);
     else
         SolveBonus();
     
@@ -48,19 +48,17 @@ void Solve123(char *inputFile)
     CreateBMP(myBitmap,img ,taskNumber, boardNumber);
 
     // Task 3
-    char ***gameBoard = ConstructCellsMask(pixelMatrix, myBitmap);
+    char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap);
     int **gameBoardNumbers = TransformGameboard(gameBoard);
     taskNumber=3;
 
     int result = CheckGameBoard(gameBoardNumbers);
     WriteResultJSON(result, taskNumber, boardNumber);
-    // TODO Free those 2
 
     
-    
+    // Free memory
     FreePlayBoard(gameBoard);
     FreeGameBoardNumbers(gameBoardNumbers);
-    // Free memory
     free(myBitmap);
     free(pixelMatrix);
     free(img);
@@ -68,8 +66,31 @@ void Solve123(char *inputFile)
     free(inputString);
 }
 
-void Solve4()
+void Solve4(char *inputFile)
 {
+    int taskNumber = 4;
+    char *boardNumber = GetLastNumberFromString(inputFile);
+    Pixel *pixelMatrix = NULL;
+    bitmap *myBitmap = ReadBMP(inputFile, &pixelMatrix);
+
+    char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap);
+    int **gameBoardNumbers = TransformGameboard(gameBoard);
+    int **toChange = SolveSudoku(gameBoardNumbers);
+
+
+    TransformGameBoardIntoPixels(toChange, &pixelMatrix, myBitmap);
+    unsigned char *img = TransformPixelMatrix(pixelMatrix, myBitmap);
+    CreateBMP(myBitmap, img, taskNumber, boardNumber);
+
+    // Free memory
+    FreePlayBoard(gameBoard);   
+    FreeGameBoardNumbers(gameBoardNumbers);
+    FreeGameBoardNumbers(toChange);
+    free(myBitmap);
+    free(pixelMatrix);
+    free(img);
+    free(boardNumber);
+    
 
 }
 
@@ -277,17 +298,7 @@ Pixel * ParseBitmap(cJSON *sudoku, int width, int height)
         }
     }
     
-    /*
-    // printing the pixel array
-    for(i = 0; i< height; ++i)
-    {
-        for(j = 0; j < width; ++j)
-        {
-            currIndex = i * height + j;
-            printf("%d %d %d\n", pixelMatrix[currIndex].r, pixelMatrix[currIndex].g, pixelMatrix[currIndex].b);
-        }
-    }
-    */
+
     return pixelMatrix;
 }
 
@@ -352,6 +363,18 @@ int CheckWhitePixel(Pixel *pixel)
 int CheckPinkPixel(Pixel *pixel)
 {
     if(pixel->b == 175 && pixel->g == 175 && pixel->r == 255)
+        return 1;
+    return 0;
+}
+int CheckGreyPixel(Pixel *pixel)
+{
+    if(pixel->b == 128 && pixel->g == 128 && pixel->r == 128)
+        return 1;
+    return 0;
+}
+int CheckBlackPixel(Pixel *pixel)
+{
+    if(pixel->b == 0 && pixel->g == 0 && pixel->r == 0)
         return 1;
     return 0;
 }
@@ -441,7 +464,7 @@ char * GetLastNumberFromString(char *inputString)
     0 - for a white pixel
     1 - for a pink pixel
 */
-char *** ConstructCellsMask(Pixel *pixelMatrix, bitmap *myBitmap)
+char *** ConstructCellsMasks(Pixel *pixelMatrix, bitmap *myBitmap)
 {
     int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
                 i, j, currIndex;
@@ -516,6 +539,8 @@ void FreeGameBoardNumbers(int **gameBoard)
 // else return -1
 int CellToNumber(char *input)
 {
+    if(strcmp(input, MASKNOTHING) == 0)
+        return 0;
     if(strcmp(input,MASK1) == 0)
         return 1;
     if(strcmp(input,MASK2) == 0)
@@ -535,6 +560,44 @@ int CellToNumber(char *input)
     if(strcmp(input,MASK9) == 0)
         return 9;
     return -1;
+}
+
+char * NumberToCell(int number)
+{
+    switch (number)
+    {
+    case 1:
+        return MASK1;
+        break;
+    case 2:
+        return MASK2;
+        break;
+    case 3:
+        return MASK3;
+        break;
+    case 4:
+        return MASK4;
+        break;
+    case 5:
+        return MASK5;
+        break;
+    case 6:
+        return MASK6;
+        break;
+    case 7:
+        return MASK7;
+        break;
+    case 8:
+        return MASK8;
+        break;
+    case 9:
+        return MASK9;
+        break;
+    
+    default:
+        return NULL;
+        break;
+    }
 }
 
 int ** TransformGameboard(char ***gameBoard)
@@ -695,4 +758,170 @@ void WriteResultJSON(int win, int taskNumber, char *boardNumber)
     free(outputFile);
     free(gameState);
     fclose(fp);
+}
+
+bitmap * ReadBMP(char *inputFile, Pixel **pixelMatrix)
+{
+    bitmap *myBitmap = (bitmap *) calloc(1, sizeof(bitmap));
+    bmp_fileheader myFileHeader;
+    bmp_infoheader myInfoheader;
+
+    FILE *fp = fopen(inputFile, "rb"); // file pointer
+    if(fp == NULL)
+    {
+        free(myBitmap);
+        return NULL;
+    }
+
+    // read the fileHeader
+    fread(&myFileHeader, sizeof(bmp_fileheader), 1, fp);
+    if(myFileHeader.fileMarker1 != 'B')
+    {
+        fclose(fp);
+        return NULL;
+    }
+    fread(&myInfoheader, sizeof(bmp_infoheader), 1, fp);
+    myBitmap->fileheader = myFileHeader;
+    myBitmap->infoheader = myInfoheader;
+    
+    // allocate memory for the pixel matrix
+    (*pixelMatrix) = (Pixel *) calloc(myInfoheader.width * myInfoheader.height + 1, sizeof(Pixel));
+
+    int unpaddedRowSize = myInfoheader.width;
+
+    fread((*pixelMatrix), sizeof(Pixel) , unpaddedRowSize, fp);
+
+    for(int i = 1; i< myInfoheader.height; ++i)
+    {
+        fseek(fp, 1 , SEEK_CUR);
+        fread((*pixelMatrix) + i * myInfoheader.width, sizeof(Pixel) , unpaddedRowSize, fp);
+    }
+    fclose(fp);
+
+    return myBitmap;
+}
+
+int ** SolveSudoku(int **gameBoardNumbers)
+{
+    int i, j, digit;
+    int **fvLine = (int **) calloc(CELLS_NUMBER+1, sizeof(int *)),
+        **fvCol = (int **) calloc(CELLS_NUMBER+1, sizeof(int *)),
+        **toChange = (int **) calloc(CELLS_NUMBER, sizeof(int *));
+
+    if(fvLine == NULL || fvCol == NULL)
+        return NULL;
+
+    for(i = 0; i < CELLS_NUMBER + 1; ++i)
+    {
+        fvLine[i] = (int *) calloc(CELLS_NUMBER + 1, sizeof(int));
+        fvCol[i] = (int *) calloc(CELLS_NUMBER + 1, sizeof(int));
+        if(i != CELLS_NUMBER)
+            toChange[i] = (int *) calloc(CELLS_NUMBER, sizeof(int));
+    }
+    
+
+    for(i = 0; i < CELLS_NUMBER; ++i)
+    {
+        for(j = 0; j < CELLS_NUMBER; ++j)
+        {
+            fvLine[i][gameBoardNumbers[i][j]]++;
+            fvCol[j][gameBoardNumbers[i][j]]++;
+        }       
+    }
+
+    for(i = 0; i < CELLS_NUMBER; ++i)
+    {
+        for(j = 0; j < CELLS_NUMBER; ++j)
+        {
+            // check for every digit
+            for(digit = 1; digit <= CELLS_NUMBER; ++digit)
+            {
+                if(fvLine[i][digit] == 0 && fvCol[j][digit] == 0 && gameBoardNumbers[i][j] == 0)
+                {
+                    gameBoardNumbers[i][j] = digit;
+                    toChange[i][j] = digit;
+                    fvLine[i][digit]++;
+                    fvCol[j][digit]++;
+                }
+            }
+        }
+    }
+
+    for(i = 0; i < CELLS_NUMBER + 1; ++i)
+    {
+        free(fvLine[i]);
+        free(fvCol[i]);
+    }
+    free(fvLine);
+    free(fvCol);
+
+    return toChange;
+}
+
+void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *myBitmap)
+{
+    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
+                i, j, currIndex;
+
+    // matrix of cells where the cell holds the hash for the number and the current pixel
+    cell **cellsToChange = (cell **) calloc(CELLS_NUMBER, sizeof(cell *));
+    if(cellsToChange == NULL)
+        return;
+
+    for(i = 0; i< CELLS_NUMBER; ++i)
+    {
+        cellsToChange[i] = (cell *) calloc(CELLS_NUMBER, sizeof(cell));
+    }
+    
+    for(i = 0; i < CELLS_NUMBER; ++i)
+    {
+        for(j = 0; j < CELLS_NUMBER; ++j)
+        {
+            if(toChange[i][j] != 0)
+            {
+                cellsToChange[i][j].currIndex = 0;
+                cellsToChange[i][j].mask = NumberToCell(toChange[i][j]);
+            }
+        }
+    }
+
+    Pixel *currPixel;
+
+    int x, y, currIndexHash;
+    char *mask;
+    for(i = 0; i < height; ++i)
+    {
+        if(i % 8 == 0) // if it is a delimiter line
+            continue;
+        y = i / (CELLS_NUMBER-1);
+        for(j = 0; j < width-1; ++j)
+        {
+            x = j / (CELLS_NUMBER-1);
+            currIndex = i * height  + j;
+            currPixel = (*pixelMatrix) + currIndex;
+
+            if(CheckGreyPixel(currPixel) || CheckBlackPixel(currPixel))
+                continue;
+
+            if(toChange[y][x] != 0) // if we are located on a cell that we need to modify
+            {
+                mask = cellsToChange[y][x].mask;
+                currIndexHash = cellsToChange[y][x].currIndex;
+                if(mask[currIndexHash] == '1')
+                {
+                    // set the pixel to magenta
+                    currPixel->b = 255;
+                    currPixel->g = 0;
+                    currPixel->r = 255;
+                }
+                // increment the index
+                cellsToChange[y][x].currIndex++;
+            }
+        }
+    }
+    for(i = 0; i< CELLS_NUMBER; ++i)
+    {
+        free(cellsToChange[i]);
+    }
+    free(cellsToChange);
 }
