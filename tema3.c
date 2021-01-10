@@ -4,7 +4,8 @@ int main(int argc, char *argv[] )
 {
     if(argc != 3)
         printf("Please provide correct input");
-    
+
+    // check what task to solve   
     if(strcmp("123", argv[2]) == 0)
         Solve123(argv[1]);
     else if(strcmp("4", argv[2]) == 0)
@@ -21,39 +22,46 @@ void Solve123(char *inputFile)
 
     // Read the JSON with the library
     char *inputString = NULL, *boardNumber = NULL ;
-    inputString = ReadJSON(inputFile);
+    inputString = ReadJSON(inputFile); // read the input string and store it in a variable
     if(inputString == NULL)
     {
         printf("Couldn't read from file");
         return;
     }
 
-    Pixel *pixelMatrix = NULL;
-    bitmap *myBitmap = NULL;
+    Pixel *pixelMatrix = NULL; // matrix of pixels
+    bitmap *myBitmap = NULL; // the bitmap
     myBitmap = ParseJSON(inputString, &pixelMatrix); // create the bitmap
 
     boardNumber = GetLastNumberFromString(inputFile); // get the board number
     
     // Task 1
-    // transform the pixelMatrix into a char vector in order to write the bmp
+    
     taskNumber = 1;
+
+    // transform the pixelMatrix into a char vector in order to write the bmp
     unsigned char *img = TransformPixelMatrix(pixelMatrix, myBitmap);
     CreateBMP(myBitmap,img, taskNumber, boardNumber); // create and write the file
-    free(img);
+    free(img); // free the memory for the image
 
     // Task 2
     taskNumber = 2;
-    MirrorNumbers(myBitmap, &pixelMatrix);
-    img = TransformPixelMatrix(pixelMatrix, myBitmap);
-    CreateBMP(myBitmap,img ,taskNumber, boardNumber);
+    MirrorNumbers(myBitmap, &pixelMatrix); // apply the mirror algorithm to the pixel matrix
+    img = TransformPixelMatrix(pixelMatrix, myBitmap); // transform again
+    CreateBMP(myBitmap,img ,taskNumber, boardNumber); // create the bmp file
 
     // Task 3
-    char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap);
-    int **gameBoardNumbers = TransformGameboard(gameBoard);
+
+    // construct a string mask for every cell in the sudoku and store
+    // them in a matrix of strings
+    char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap); 
+
+    // transform the matrix of strings into a matrix of integers
+    int **gameBoardNumbers = TransformGameboard(gameBoard); 
     taskNumber=3;
 
-    int result = CheckGameBoard(gameBoardNumbers);
-    WriteResultJSON(result, taskNumber, boardNumber);
+    int result = CheckGameBoard(gameBoardNumbers); // verify if the game is won
+    WriteResultJSON(result, taskNumber, boardNumber); // write the result to a json file
 
     
     // Free memory
@@ -70,17 +78,24 @@ void Solve4(char *inputFile)
 {
     int taskNumber = 4;
     char *boardNumber = GetLastNumberFromString(inputFile);
-    Pixel *pixelMatrix = NULL;
-    bitmap *myBitmap = ReadBMP(inputFile, &pixelMatrix);
 
+    Pixel *pixelMatrix = NULL;
+
+    // read a bmp file and store the headers in the bitmap structre and
+    // the pixels in the pixel matrix
+    bitmap *myBitmap = ReadBMP(inputFile, &pixelMatrix); 
+
+    // same procedure as in the first 3 tasks
     char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap);
     int **gameBoardNumbers = TransformGameboard(gameBoard);
-    int **toChange = SolveSudoku(gameBoardNumbers);
+
+    int **toChange = SolveSudoku(gameBoardNumbers); // solve the sudoku puzzle
 
 
-    TransformGameBoardIntoPixels(toChange, &pixelMatrix, myBitmap);
+    TransformGameBoardIntoPixels(toChange, &pixelMatrix, myBitmap); // put the new pixels in the board
     unsigned char *img = TransformPixelMatrix(pixelMatrix, myBitmap);
-    CreateBMP(myBitmap, img, taskNumber, boardNumber);
+
+    CreateBMP(myBitmap, img, taskNumber, boardNumber); // create the bmp
 
     // Free memory
     FreePlayBoard(gameBoard);   
@@ -104,9 +119,10 @@ char * ReadJSON(const char *argument)
     long length;
     char *inputString = NULL;
 
-    FILE *inputFile = fopen(argument, "r");
+    FILE *inputFile = fopen(argument, "r"); // open file
     if(inputFile != NULL)
     {
+        // get the size of the file
         fseek(inputFile, 0, SEEK_END);
         length = ftell(inputFile);
         fseek(inputFile, 0, SEEK_SET);
@@ -115,7 +131,7 @@ char * ReadJSON(const char *argument)
             inputString = calloc((length+1),sizeof(char));
             if(inputString != NULL)
             {
-                fread(inputString, 1, length, inputFile);
+                fread(inputString, 1, length, inputFile); // read the whole file
             }
             fclose(inputFile);
         }
@@ -130,7 +146,6 @@ bitmap * ParseJSON(const char * const inputString, Pixel **pixelMatrix)
     bitmap *myBitmap = (bitmap *) calloc(1,sizeof(bitmap));
     bmp_fileheader *myFileHeader = NULL;
     bmp_infoheader *myInfoheader = NULL;
-    // TODO free those two
 
     // parse the JSON and verify
     cJSON *sudoku = cJSON_Parse(inputString);
@@ -146,10 +161,14 @@ bitmap * ParseJSON(const char * const inputString, Pixel **pixelMatrix)
 
     myFileHeader = ParseFileHeader(sudoku);
     myInfoheader = ParseInfoHeader(sudoku);
+
+    // get the pixelMatrix
     *pixelMatrix = ParseBitmap(sudoku, myInfoheader->width, myInfoheader->height);
+
     myBitmap->fileheader = *myFileHeader;
     myBitmap->infoheader = *myInfoheader;
 
+    // Free memory
     free(myFileHeader);
     free(myInfoheader);
     cJSON_Delete(sudoku); // free up allocated memory with the built in function
@@ -173,6 +192,7 @@ bmp_fileheader * ParseFileHeader(cJSON *sudoku)
         signature = cJSON_GetObjectItemCaseSensitive(file_header,"signature");
         file_size = cJSON_GetObjectItemCaseSensitive(file_header,"file_size");
 
+        // verify and set
         if(cJSON_IsNumber(offset))
             myFileHeader->imageDataOffset = offset->valueint;
 
@@ -218,6 +238,7 @@ bmp_infoheader * ParseInfoHeader(cJSON *sudoku)
         colors_used = cJSON_GetObjectItemCaseSensitive(info_header,"colors_used");
         colors_important = cJSON_GetObjectItemCaseSensitive(info_header,"colors_important");
 
+        // verify and set
         if(cJSON_IsNumber(size))
             myInfoheader->biSize = size->valueint;
 
@@ -259,7 +280,7 @@ Pixel * ParseBitmap(cJSON *sudoku, int width, int height)
 {
      // allocating memory for the pixelMatrix
     Pixel *pixelMatrix = (Pixel *) malloc(width * height * sizeof(Pixel));
-    // TODO free the pixelMatrix
+
     if(pixelMatrix == NULL)
         return NULL;
 
@@ -278,6 +299,7 @@ Pixel * ParseBitmap(cJSON *sudoku, int width, int height)
         else
         {
             currIndex = i * height + j;
+            // the order in bmp file is BGR
             if(k == 0)
                 pixelMatrix[currIndex].b = bit->valueint;
             else if(k == 1)
@@ -306,7 +328,7 @@ unsigned char *TransformPixelMatrix(Pixel *pixelMatrix, bitmap *myBitmap)
 {
     int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
                 pixelSize = sizeof(Pixel), i, j;
-    unsigned char *img = malloc(pixelSize * width * height);
+    unsigned char *img = malloc(pixelSize * width * height); // continuos space allocated
     
     // create a new matrix of unsigned char with all the pixels
     for(i=0; i< height; ++i)
@@ -318,6 +340,7 @@ unsigned char *TransformPixelMatrix(Pixel *pixelMatrix, bitmap *myBitmap)
                 g = pixelMatrix[currIndex].g,
                 b = pixelMatrix[currIndex].b;
 
+            // put the bytes in the correct positions
             img[i * width * pixelSize + j * pixelSize + 2] = (unsigned char) (r);
             img[i * width * pixelSize + j * pixelSize + 1] = (unsigned char) (g);
             img[i * width * pixelSize + j * pixelSize + 0] = (unsigned char) (b);
@@ -334,11 +357,13 @@ void CreateBMP(bitmap *myBitmap, unsigned char * img, int taskNumber, char *boar
     unsigned char pad = '\0';
 
     char *destinationFile = malloc(100 * sizeof(char));
+
     // construct the output file in the specified format
     sprintf(destinationFile,"output_task%d_board%s.bmp", taskNumber, boardNumber);
 
     // open the file in write bytes mode
     FILE *fp = fopen(destinationFile, "wb");
+
     fwrite(myBitmap, 1, sizeof(bitmap), fp); // write the two headers to the file
     
     // go to each line of pixels
@@ -399,6 +424,7 @@ void MirrorNumbers(bitmap *myBitmap, Pixel **pixelMatrix)
     int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
                 i, j, currIndex, k = -1;
     Pixel *currPixel, *toSwap;
+    // iterate through every pixel
     for(i = 0; i < height; ++i)
     {
         for(j =  0; j < width; ++j)
@@ -469,7 +495,8 @@ char *** ConstructCellsMasks(Pixel *pixelMatrix, bitmap *myBitmap)
     int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
                 i, j, currIndex;
 
-    // this variable stores the bitmasks for every cell
+    // this variable stores the masks for every cell
+    // allocate the memory
     char ***gameBoard = (char ***) calloc(CELLS_NUMBER,sizeof(char **));
     for(i = 0; i < CELLS_NUMBER; ++i)
     {
@@ -498,8 +525,6 @@ char *** ConstructCellsMasks(Pixel *pixelMatrix, bitmap *myBitmap)
             len = strlen(gameBoard[y][x]);
             if(CheckWhitePixel(currPixel)) // if it is a white pixel
             {
-                //currIndexBoard = y * CELLS_NUMBER + x * NUM_OF_PIXELS_IN_CELL; 
-                //strncat(gameBoard + currIndexBoard, )
                 gameBoard[y][x][len] = '0';
                 gameBoard[y][x][len+1] = '\0';
             }
@@ -513,6 +538,7 @@ char *** ConstructCellsMasks(Pixel *pixelMatrix, bitmap *myBitmap)
     return gameBoard;
 }
 
+// Free The memery allocated for the gameBoard
 void FreePlayBoard(char ***gameBoard)
 {
     int i,j;
@@ -621,16 +647,18 @@ int ** TransformGameboard(char ***gameBoard)
 
 int CheckGameBoard(int ** gameBoardNumbers)
 {
-    // Check for the 3 condition
+    // frequency vector
     int *fv = (int *) calloc(CELLS_NUMBER+1, sizeof(int));
 
     int i, j, x, y;
+
+    // Check for the 3 condition
     // Check every line
     for(i = 0; i < CELLS_NUMBER; ++i)
     {
         for(j =0; j< CELLS_NUMBER; ++j)
         {
-            if(gameBoardNumbers[i][j] == -1)
+            if(gameBoardNumbers[i][j] == -1) // if the cell doesn't have a number in it
             {
                 free(fv);
                 return 0;
@@ -642,13 +670,13 @@ int CheckGameBoard(int ** gameBoardNumbers)
             }
             fv[gameBoardNumbers[i][j]]++;
         }
-        // check if every the line has every number
+        // check if the line has every number
         for(j = 1; j <= CELLS_NUMBER; ++j)
         {
             if(fv[j] != 1)
             {
                 free(fv);
-                return 0;
+                return 0; // the game is lost
             }
             else
                 fv[j] = 0; // reset it;
@@ -727,14 +755,18 @@ void WriteResultJSON(int win, int taskNumber, char *boardNumber)
             *gameState = (char *) calloc(30, sizeof(char)),
             *outputFile = (char *) calloc(30, sizeof(char)),
             *string = NULL;
+
+    // format the input and output files        
     sprintf(inputFile,"board%s.json",boardNumber);
     sprintf(outputFile,"output_task%d_board%s.json",taskNumber, boardNumber);
+
     if(win == 1)
         strcpy(gameState, "Win!");
     else
         strcpy(gameState, "Loss :(");
     
 
+    // Create a cJSON object and add the tags to it
     cJSON *result = cJSON_CreateObject();
     if(result == NULL)
         return;
@@ -748,9 +780,11 @@ void WriteResultJSON(int win, int taskNumber, char *boardNumber)
     if(game_state == NULL)
         return;
     cJSON_AddItemToObject(result,"game_state", game_state);
-    FILE *fp = fopen(outputFile,"wb");
-    string = cJSON_Print(result);
-    fprintf(fp, "%s\n", string);
+
+    FILE *fp = fopen(outputFile,"wb"); // open the output file
+
+    string = cJSON_Print(result); // create a string from the JSON just created
+    fprintf(fp, "%s\n", string); // write the string to the file
 
     cJSON_Delete(result);
     free(string);
@@ -775,12 +809,14 @@ bitmap * ReadBMP(char *inputFile, Pixel **pixelMatrix)
 
     // read the fileHeader
     fread(&myFileHeader, sizeof(bmp_fileheader), 1, fp);
-    if(myFileHeader.fileMarker1 != 'B')
+    if(myFileHeader.fileMarker1 != 'B') // If it is not a bmp file
     {
         fclose(fp);
         return NULL;
     }
+    // read the infoHeader
     fread(&myInfoheader, sizeof(bmp_infoheader), 1, fp);
+
     myBitmap->fileheader = myFileHeader;
     myBitmap->infoheader = myInfoheader;
     
@@ -789,12 +825,12 @@ bitmap * ReadBMP(char *inputFile, Pixel **pixelMatrix)
 
     int unpaddedRowSize = myInfoheader.width;
 
-    fread((*pixelMatrix), sizeof(Pixel) , unpaddedRowSize, fp);
+    fread((*pixelMatrix), sizeof(Pixel) , unpaddedRowSize, fp); // read the first line of pixels
 
     for(int i = 1; i< myInfoheader.height; ++i)
     {
-        fseek(fp, 1 , SEEK_CUR);
-        fread((*pixelMatrix) + i * myInfoheader.width, sizeof(Pixel) , unpaddedRowSize, fp);
+        fseek(fp, 1 , SEEK_CUR); // offset the the file pointer by 1 byte 
+        fread((*pixelMatrix) + i * myInfoheader.width, sizeof(Pixel) , unpaddedRowSize, fp); // read next line
     }
     fclose(fp);
 
@@ -824,6 +860,7 @@ int ** SolveSudoku(int **gameBoardNumbers)
     {
         for(j = 0; j < CELLS_NUMBER; ++j)
         {
+            // complete the frequency vectors for every line and every column
             fvLine[i][gameBoardNumbers[i][j]]++;
             fvCol[j][gameBoardNumbers[i][j]]++;
         }       
@@ -838,6 +875,7 @@ int ** SolveSudoku(int **gameBoardNumbers)
             {
                 if(fvLine[i][digit] == 0 && fvCol[j][digit] == 0 && gameBoardNumbers[i][j] == 0)
                 {
+                    // we need to add a new number
                     gameBoardNumbers[i][j] = digit;
                     toChange[i][j] = digit;
                     fvLine[i][digit]++;
@@ -863,13 +901,14 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
     int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
                 i, j, currIndex;
 
-    // matrix of cells where the cell holds the hash for the number and the current pixel
+    // matrix of cells where the cell holds the mask for the number and the current pixel
     cell **cellsToChange = (cell **) calloc(CELLS_NUMBER, sizeof(cell *));
     if(cellsToChange == NULL)
         return;
 
     for(i = 0; i< CELLS_NUMBER; ++i)
     {
+        // alloc memory
         cellsToChange[i] = (cell *) calloc(CELLS_NUMBER, sizeof(cell));
     }
     
@@ -879,7 +918,8 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
         {
             if(toChange[i][j] != 0)
             {
-                cellsToChange[i][j].currIndex = 0;
+                // initialise every cell that has to be added to the board
+                cellsToChange[i][j].currIndex = 0; // set the currPixel to 0 -> the 
                 cellsToChange[i][j].mask = NumberToCell(toChange[i][j]);
             }
         }
@@ -889,16 +929,18 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
 
     int x, y, currIndexHash;
     char *mask;
+    // iterate through every pixel
     for(i = 0; i < height; ++i)
     {
         if(i % 8 == 0) // if it is a delimiter line
             continue;
         y = i / (CELLS_NUMBER-1);
+
         for(j = 0; j < width-1; ++j)
         {
             x = j / (CELLS_NUMBER-1);
             currIndex = i * height  + j;
-            currPixel = (*pixelMatrix) + currIndex;
+            currPixel = (*pixelMatrix) + currIndex; // get the curr pixel
 
             if(CheckGreyPixel(currPixel) || CheckBlackPixel(currPixel))
                 continue;
@@ -907,7 +949,8 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
             {
                 mask = cellsToChange[y][x].mask;
                 currIndexHash = cellsToChange[y][x].currIndex;
-                if(mask[currIndexHash] == '1')
+
+                if(mask[currIndexHash] == '1') // the pixel is colored
                 {
                     // set the pixel to magenta
                     currPixel->b = 255;
