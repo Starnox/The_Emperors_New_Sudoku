@@ -439,9 +439,9 @@ int CheckBlackPixel(Pixel *pixel)
     return 0;
 }
 
-void SwapNumbers(uint8_t *a, uint8_t *b)
+void SwapNumbers(unsigned char *a, unsigned char *b)
 {
-    int aux = *a;
+    unsigned char aux = *a;
     *a = *b;
     *b = aux;
 }
@@ -598,7 +598,7 @@ void FreeGameBoardNumbers(int **gameBoard)
 
 // check every mask and return the corresponding number if found
 // else return -1
-int CellToNumber(char *input)
+int MaskToNumber(char *input)
 {
     if(strcmp(input, MASKNOTHING) == 0)
         return 0;
@@ -623,7 +623,7 @@ int CellToNumber(char *input)
     return -1;
 }
 
-char * NumberToCell(int number)
+char * NumberToMask(int number)
 {
     switch (number)
     {
@@ -673,7 +673,7 @@ int ** TransformGameboard(char ***gameBoard)
     {
         for(j =0; j< CELLS_NUMBER; ++j)
         {
-            result[i][j] = CellToNumber(gameBoard[i][j]);
+            result[i][j] = MaskToNumber(gameBoard[i][j]);
         }
     }
 
@@ -955,7 +955,7 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
             {
                 // initialise every cell that has to be added to the board
                 cellsToChange[i][j].currIndex = 0; // set the currPixel to 0 -> the 
-                cellsToChange[i][j].mask = NumberToCell(toChange[i][j]);
+                cellsToChange[i][j].mask = NumberToMask(toChange[i][j]);
             }
         }
     }
@@ -1022,11 +1022,11 @@ int IsPresentInRow(int ** gameBoardNumbers, int row, int num)
     return 0;
 }
 
-int IsPresentInBox(int **gameBoardNumbers, int boxStarRow, int boxStartCol, int num)
+int IsPresentInBox(int **gameBoardNumbers, int boxStartRow, int boxStartCol, int num)
 {
     for(int row = 0; row < 3; ++row)
         for(int col = 0; col < 3; ++col)
-            if(gameBoardNumbers[row + boxStarRow][col + boxStartCol] == num)
+            if(gameBoardNumbers[row + boxStartRow][col + boxStartCol] == num)
                 return 1;
     return 0;
 }
