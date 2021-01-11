@@ -11,7 +11,7 @@ int main(int argc, char *argv[] )
     else if(strcmp("4", argv[2]) == 0)
         Solve4(argv[1]);
     else
-        SolveBonus();
+        SolveBonus(argv[1]);
     
     return 0;
 }
@@ -58,7 +58,7 @@ void Solve123(char *inputFile)
 
     // transform the matrix of strings into a matrix of integers
     int **gameBoardNumbers = TransformGameboard(gameBoard); 
-    taskNumber=3;
+    taskNumber = 3;
 
     int result = CheckGameBoard(gameBoardNumbers); // verify if the game is won
     WriteResultJSON(result, taskNumber, boardNumber); // write the result to a json file
@@ -101,17 +101,49 @@ void Solve4(char *inputFile)
     FreePlayBoard(gameBoard);   
     FreeGameBoardNumbers(gameBoardNumbers);
     FreeGameBoardNumbers(toChange);
+    free(boardNumber);
+    free(myBitmap);
+    free(pixelMatrix);
+    free(img);    
+}
+
+void SolveBonus(char *inputFile)
+{
+    
+    int taskNumber = 0;
+    char *boardNumber = GetLastNumberFromString(inputFile);
+
+    Pixel *pixelMatrix = NULL;
+
+    // read a bmp file and store the headers in the bitmap structre and
+    // the pixels in the pixel matrix
+    bitmap *myBitmap = ReadBMP(inputFile, &pixelMatrix); 
+
+    char ***gameBoard = ConstructCellsMasks(pixelMatrix, myBitmap);
+    int **gameBoardNumbers = TransformGameboard(gameBoard);
+
+    int **toChange = (int **) calloc(CELLS_NUMBER, sizeof(int *));
+
+    for(int i = 0; i< CELLS_NUMBER; ++i)
+        toChange[i] = (int *) calloc(CELLS_NUMBER, sizeof(int));
+
+    unsigned char *img;
+    if(SolveSudokuBonus(gameBoardNumbers,toChange))
+        TransformGameBoardIntoPixels(toChange, &pixelMatrix, myBitmap);
+    else
+        CreateInvalidBoard(&pixelMatrix, myBitmap);
+
+    img = TransformPixelMatrix(pixelMatrix, myBitmap);
+    CreateBMP(myBitmap, img, taskNumber, boardNumber);
+
+    FreePlayBoard(gameBoard);   
+    FreeGameBoardNumbers(gameBoardNumbers);
+    FreeGameBoardNumbers(toChange);
     free(myBitmap);
     free(pixelMatrix);
     free(img);
     free(boardNumber);
     
-
-}
-
-void SolveBonus()
-{
-
 }
 
 char * ReadJSON(const char *argument)
@@ -359,7 +391,10 @@ void CreateBMP(bitmap *myBitmap, unsigned char * img, int taskNumber, char *boar
     char *destinationFile = malloc(100 * sizeof(char));
 
     // construct the output file in the specified format
-    sprintf(destinationFile,"output_task%d_board%s.bmp", taskNumber, boardNumber);
+    if(taskNumber != 0)
+        sprintf(destinationFile,"output_task%d_board%s.bmp", taskNumber, boardNumber);
+    else
+        sprintf(destinationFile, "output_bonus_board%s.bmp", boardNumber);
 
     // open the file in write bytes mode
     FILE *fp = fopen(destinationFile, "wb");
@@ -960,6 +995,141 @@ void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix,  bitmap *
                 // increment the index
                 cellsToChange[y][x].currIndex++;
             }
+        }
+    }
+    for(i = 0; i< CELLS_NUMBER; ++i)
+    {
+        free(cellsToChange[i]);
+    }
+    free(cellsToChange);
+}
+
+// Bonus Sudoku Solver
+
+int IsPresentInCol(int ** gameBoardNumbers, int col, int num)
+{
+    for(int row = 0; row < CELLS_NUMBER; ++row)
+        if(gameBoardNumbers[row][col] == num)
+            return 1;
+    return 0;
+}
+
+int IsPresentInRow(int ** gameBoardNumbers, int row, int num)
+{
+    for(int col = 0; col < CELLS_NUMBER; ++col)
+        if(gameBoardNumbers[row][col] == num)
+            return 1;
+    return 0;
+}
+
+int IsPresentInBox(int **gameBoardNumbers, int boxStarRow, int boxStartCol, int num)
+{
+    for(int row = 0; row < 3; ++row)
+        for(int col = 0; col < 3; ++col)
+            if(gameBoardNumbers[row + boxStarRow][col + boxStartCol] == num)
+                return 1;
+    return 0;
+}
+
+int FindEmptyPlace(int **gameBoardNumbers, int *row, int *col)
+{
+    for(*row = 0; *row < CELLS_NUMBER; (*row)++)
+        for(*col = 0; *col < CELLS_NUMBER; (*col)++)
+            if(gameBoardNumbers[*row][*col] == 0)
+                return 1;
+    return 0;
+}
+
+int IsValidPlace(int **gameBoardNumbers, int row, int col, int num)
+{
+    return !IsPresentInRow(gameBoardNumbers, row, num) && !IsPresentInCol(gameBoardNumbers, col, num)
+            && !IsPresentInBox(gameBoardNumbers ,row - row % 3, col - col%3, num);
+}
+
+int SolveSudokuBonus(int **gameBoardNumber, int **toChange)
+{
+    int row, col, num;
+    if(!FindEmptyPlace(gameBoardNumber,&row, &col))
+        return 1; // all cells are filled
+    
+    for(num = 1; num <= 9; num++)
+    {
+        if(IsValidPlace(gameBoardNumber, row, col, num))
+        {
+            gameBoardNumber[row][col] = num;
+            toChange[row][col] = num;
+            if(SolveSudokuBonus(gameBoardNumber, toChange))
+                return 1;
+            gameBoardNumber[row][col] = 0; // the conditions are not satisfied
+            toChange[row][col] = 0;
+        }
+    }
+    return 0;
+}
+
+void CreateInvalidBoard(Pixel **pixelMatrix, bitmap *myBitmap)
+{
+    int width = myBitmap->infoheader.width, height = myBitmap->infoheader.height,
+                i, j, currIndex;
+
+    // matrix of cells where the cell holds the mask for the X and the current pixel
+    cell **cellsToChange = (cell **) calloc(CELLS_NUMBER, sizeof(cell *));
+    if(cellsToChange == NULL)
+        return;
+
+    for(i = 0; i< CELLS_NUMBER; ++i)
+    {
+        // alloc memory
+        cellsToChange[i] = (cell *) calloc(CELLS_NUMBER, sizeof(cell));
+    }
+
+    for(i = 0; i < CELLS_NUMBER; ++i)
+    {
+        for(j = 0; j < CELLS_NUMBER; ++j)
+        {
+            // initialise every cell with X
+            cellsToChange[i][j].currIndex = 0; // set the currPixel to 0 -> the 
+            cellsToChange[i][j].mask = MASKX;
+        }
+    }
+    Pixel *currPixel;
+
+    int x, y, currIndexHash;
+    char *mask = MASKX;
+    // iterate through every pixel
+    for(i = 0; i < height; ++i)
+    {
+        if(i % 8 == 0) // if it is a delimiter line
+            continue;
+        y = i / (CELLS_NUMBER-1);
+
+        for(j = 0; j < width-1; ++j)
+        {
+            x = j / (CELLS_NUMBER-1);
+            currIndex = i * height  + j;
+            currPixel = (*pixelMatrix) + currIndex; // get the curr pixel
+
+            if(CheckGreyPixel(currPixel) || CheckBlackPixel(currPixel))
+                continue;
+
+            currIndexHash = cellsToChange[y][x].currIndex;
+            if(mask[currIndexHash] == '1') // the pixel is colored
+            {
+                // set the pixel to red
+                currPixel->b = 0;
+                currPixel->g = 0;
+                currPixel->r = 255;
+            }
+            else
+            {
+                // set the pixel to white
+                currPixel->b = 255;
+                currPixel->g = 255;
+                currPixel->r = 255;
+            }
+            
+            // increment the index
+            cellsToChange[y][x].currIndex++;
         }
     }
     for(i = 0; i< CELLS_NUMBER; ++i)

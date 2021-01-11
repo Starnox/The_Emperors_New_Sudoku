@@ -12,6 +12,7 @@
 #define CELLS_NUMBER 9
 
 #define MASKNOTHING "0000000000000000000000000000000000000000000000000"
+#define MASKX "0000000010001000101000001000001010001000100000000"
 #define MASK1 "0000000000001000000100000010000001000000100000000"
 #define MASK2 "0000000011111001000000111110000001001111100000000"
 #define MASK3 "0000000011111000000100111110000001001111100000000"
@@ -61,7 +62,7 @@ void SwapPixels(Pixel * pixel1, Pixel *pixel2);
 void SwapNumbers(uint8_t *a, uint8_t *b);
 void Solve123(char *inputFile);
 void Solve4(char *inputFile);
-void SolveBonus();
+void SolveBonus(char *inputFile);
 char * GetLastNumberFromString(char *inputString);
 char *** ConstructCellsMasks(Pixel *pixelMatrix, bitmap *myBitmap);
 void FreePlayBoard(char ***gameBoard);
@@ -74,3 +75,10 @@ void WriteResultJSON(int win, int taskNumber, char *boardNumber);
 bitmap * ReadBMP(char *inputFile, Pixel **pixelMatrix);
 int ** SolveSudoku(int **FreeGameBoardNumbers);
 void TransformGameBoardIntoPixels(int **toChange, Pixel **pixelMatrix, bitmap *myBitmap);
+void CreateInvalidBoard(Pixel **pixelMatrix, bitmap *myBitmap);
+int IsPresentInCol(int **gameBoardNumbers, int col, int num);
+int IsPresentInRow(int **gameBoardNumbers, int row, int num);
+int IsPresentInBox(int **gameBoardNumbers, int boxStarRow, int boxStartCol, int num);
+int IsValidPlace(int **gameBoardNumbers, int row, int col, int num);
+int FindEmptyPlace(int **gameBoardNumbers, int *row, int *col);
+int SolveSudokuBonus(int **gameBoardNumber, int **toChange);

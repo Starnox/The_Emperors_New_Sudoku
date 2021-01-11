@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${fileDirname}/${fileBasenameNoExtension}",
-            "args": ["checker/input/task4/board08.bmp", "4"],
+            "args": ["checker/input/bonus/board03.bmp", "bonus"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
