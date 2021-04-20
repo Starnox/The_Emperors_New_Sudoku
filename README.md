@@ -1,7 +1,8 @@
-# Tema 3 PC. The Emperor's New Sudoku
+# Homework PC. The Emperor's New Sudoku
 
-### Elev: Mihailescu Eduard-Florin
-### Grupa: 312CB
+This project is made for my Computer Programming class in the first year of my University. 
+
+### Student: Mihailescu Eduard-Florin
 
 #### Filosofie Generala
 Am ales sa parsez fisierile JSON cu libraria cJSON (https://github.com/DaveGamble/cJSON) deoarece este "Ultralightweight" 
